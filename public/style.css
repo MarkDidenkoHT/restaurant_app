@@ -1,0 +1,32 @@
+
+.input-group {
+margin-right: 10px;
+}
+
+.panel {
+border: 1px solid #ccc;
+padding: 10px;
+margin: 10px;
+}
+
+.Stop-List-Table {
+width: 100%;
+border-collapse: collapse; /* Ensures no double borders */
+margin-top: 10px;
+}
+
+.Stop-List-Table td {
+padding: 5px; /* Adds padding around the cell content */
+text-align: center; /* Centers the content horizontally */
+vertical-align: middle; /* Centers the content vertically */
+}
+
+.remove-button {
+background-color: transparent;
+border: none;
+font-size: 20px;
+color: red;
+cursor: pointer;
+padding: 0;
+text-align: center;
+}
