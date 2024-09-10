@@ -138,7 +138,7 @@ input[type="text"]:focus {
 }
 
 body {
-    background-color: #d9d9da; 
+    background-color: #e9e7e7; 
     margin: 0;
     padding: 0;
 }
@@ -209,6 +209,8 @@ body {
     display: block;
     margin-bottom: 5px;
 }
+
+
 
 .filter-item .form-control,
 .filter-item .btn {
@@ -297,37 +299,55 @@ body {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-around;
-    background-color: #a79c9c;
+    background-color: #ffffff;
     gap: 7px;
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
     z-index: 1000;
-    border-top: 1px solid #1b1b23;
+    border-top: 1px solid #346b5b;
+    padding-bottom: 4px;
+}
+
+.input-group-addon{
+    background-color: #d6f5e4;
+    border-color: #48bf8f;
+}
+
+.form-control{
+    border-color: #48bf8f;
 }
 
 .icon-button {
     background-color: transparent;
     border: none;
     cursor: pointer;
-    padding: 8px;
+    padding: 2px;
     outline: none;
     transition: transform 0.2s;
     flex: 0 0 30%;
     max-width: 90px;
     text-align: center;
+    border: solid 2px;
+    border-radius: 4px;
+    border-color: #48bf8f;
+    background-color: #7dd8b1;
 }
 
 .icon-button img {
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
     display: block;
     margin: 0 auto;
 }
 
 .icon-button:hover {
-    transform: scale(1.2); /* Slightly enlarge the icon on hover */
+    /* transform: scale(1.1); */
+    border: solid 2px;
+    border-radius: 4px;
+    border-color: #0a0a0a;
+    background-color: #34a57e;
 }
 
 .icon-button img {
@@ -342,7 +362,7 @@ body {
     transform: translateX(-50%);
     background-color: #333;
     color: white;
-    padding: 5px 8px;
+    padding: 5px 5px;
     border-radius: 5px;
     white-space: nowrap;
     opacity: 0;
@@ -358,10 +378,10 @@ body {
 }
 
 #scrollToTopBtn img {
-    width: 20px; /* Adjust size as needed */
+    width: 20px;
     height: 20px;
     display: block;
-    margin: 0 auto;
+    margin-right: 4px;
 }
 
 .scrollToTopBtn {
@@ -370,15 +390,14 @@ body {
     cursor: pointer;
     padding: 1px;
     outline: none;
-    text-align: center; /* Center text under icons */
 }
 
 .greeting {
     display: flex;
-    flex-wrap: wrap; /* Allow the buttons to wrap to the next line */
+    flex-wrap: wrap;
     justify-content: space-around;
-    background-color: #a79c9c;
-    font-size: 18px;
+    background-color: #ffffff;
+    font-size: 16px;
     padding: 6px;
     gap: 7px; /* Add some space between rows */
     position: fixed; /* Fix the icon container to the viewport */
@@ -386,5 +405,5 @@ body {
     left: 0;
     width: 100%; /* Make it span the full width of the screen */
     z-index: 1000; /* Ensure it appears above other content */
-    border-bottom: 1px solid #1b1b23;
+    border-bottom: 1px solid #346b5b;
 }

@@ -79,7 +79,7 @@ function showElements(div1, div2, div3, div4,div5, div6, div7) {
         document.getElementById('greeting').textContent='Архив всех задач';
     } else if (div1 === 'Edit_photo') {
         loadPhotoQuestionsForEditing();
-        document.getElementById('greeting').textContent='Изменить вопросы фотоотчета';
+        document.getElementById('greeting').textContent='Изменить ежедневные задачи';
     } else if (div1 === 'Edit_managers'){
         loadManagersForEditing();
         document.getElementById('greeting').textContent='Изменить менеджеров';
@@ -618,14 +618,14 @@ function loadCheckListForEditing() {
         .then(response => response.json())
         .then(data => {
             if (data.length === 0) {
-                editDiv.innerHTML += '<p>No questions available for editing.</p>';
+                editDiv.innerHTML += '<p>Нет вопросо для данного ресторана.</p>';
                 return;
             }
 
             // Create a table
             const table = document.createElement('table');
             table.id = 'EditCheckListTable';
-            table.className = 'table table-striped'; // Bootstrap class for styling
+            table.className = 'table table-striped';
 
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
@@ -1116,7 +1116,7 @@ function loadPhotoQuestionsForEditing() {
 
     // Create the "Create New Photo Question" button
     const createButton = document.createElement('button');
-    createButton.textContent = 'Создать новый фото вопрос';
+    createButton.textContent = 'Добавить задачу';
     createButton.className = 'btn btn-primary';
     createButton.style.marginBottom = '15px';
     createButton.onclick = createNewPhotoQuestion;
