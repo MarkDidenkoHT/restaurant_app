@@ -1,0 +1,1484 @@
+<html lang="en">
+<head>
+    <title>Localstorage - Task Manager</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/recordrtc@5.6.1/RecordRTC.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<script>
+function login() {
+    const username = document.getElementById('usernameInput').value;
+    const password = document.getElementById('passwordInput').value;
+    const loginMessage = document.getElementById('loginMessage');
+
+    fetch('/server.php?login=true', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            loginMessage.textContent = data.error;
+            loginMessage.style.color = 'red';
+        } else {
+            const { restaurant, role } = data;
+
+            // Show the content div and hide the login container
+            document.getElementById('loginContainer').style.display = 'none';
+            document.querySelector('.content').style.display = 'block';
+
+            // If the role is 'manager', lock the restaurant selection
+            const restaurantSelect = document.getElementById('Restaurant');
+            if (role === 'manager') {
+                restaurantSelect.value = restaurant;
+                restaurantSelect.disabled = true;
+                document.getElementById('Edit_check_list_btn').style.display = 'none';
+                document.getElementById('Edit_photo_btn').style.display = 'none';
+                document.getElementById('Edit_managers_btn').style.display = 'none';
+            } else if (role === 'admin') {
+                restaurantSelect.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        loginMessage.textContent = 'Ошибка на сервере. Попробуйте снова.';
+        loginMessage.style.color = 'red';
+        console.error('Error logging in:', error);
+    });
+}
+
+function showElements(div1, div2, div3, div4,div5, div6, div7) {
+    document.getElementById(div1).style.display = 'block';
+    document.getElementById(div2).style.display = 'none';
+    document.getElementById(div3).style.display = 'none';
+    document.getElementById(div4).style.display = 'none';
+    document.getElementById(div5).style.display = 'none';
+    document.getElementById(div6).style.display = 'none';
+    document.getElementById(div7).style.display = 'none';
+
+    if (div1 === 'Check_list') {
+        loadCheckList();
+        document.getElementById('greeting').textContent='Чек-лист смены';
+    } else if (div1 ==='Tasks'){
+        loadTasks();
+        document.getElementById('greeting').textContent='Текущие задачи';
+    } else if (div1 === 'Archive_data') {
+        loadArchive();
+        document.getElementById('greeting').textContent='Архив всех задач';
+    } else if (div1 === 'Edit_photo') {
+        loadPhotoQuestionsForEditing();
+        document.getElementById('greeting').textContent='Изменить ежедневные задачи';
+    } else if (div1 === 'Edit_managers'){
+        loadManagersForEditing();
+        document.getElementById('greeting').textContent='Изменить менеджеров';
+    }  else if (div1=== 'Edit_check_list'){
+        loadCheckListForEditing();
+        document.getElementById('greeting').textContent='Изменить чек-лист';
+    }
+}
+
+function loadCheckList(){
+    loadCheckListQuestions();
+    loadCheckListManagers();
+}
+
+function applyFilters() {
+    loadArchive(); // Reload the archive with filters applied
+}
+
+    function loadCheckListQuestions() {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    fetch(`/server.php?questions=true&restaurant=${restaurant}`)
+        .then(response => response.json())
+        .then(data => {
+            const checkListDiv = document.getElementById('Check_list_questions');
+            checkListDiv.innerHTML = '';
+
+            // Create a table
+            const table = document.createElement('table');
+            table.className = 'table table-striped'; // Bootstrap class for styling
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            const thType = document.createElement('th');
+            thType.textContent = 'Type';
+            headerRow.appendChild(thType);
+
+            const thQuestion = document.createElement('th');
+            thQuestion.textContent = 'Question';
+            headerRow.appendChild(thQuestion);
+
+            const thOk = document.createElement('th');
+            thOk.textContent = 'OK';
+            headerRow.appendChild(thOk);
+
+            const thNotOk = document.createElement('th');
+            thNotOk.textContent = 'Not OK';
+            headerRow.appendChild(thNotOk);
+
+            const thInput = document.createElement('th');
+            thInput.textContent = 'Comments';
+            headerRow.appendChild(thInput);
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            data.forEach((item, index) => {
+                const row = document.createElement('tr');
+
+                const tdType = document.createElement('td');
+                tdType.textContent = item.type;
+                row.appendChild(tdType);
+
+                const tdQuestion = document.createElement('td');
+                tdQuestion.textContent = item.question;
+                row.appendChild(tdQuestion);
+
+                const tdOk = document.createElement('td');
+                tdOk.setAttribute('data-label', 'Все чисто / в порядке');
+                const okRadio = document.createElement('input');
+                okRadio.type = 'radio';
+                okRadio.name = `status_${index}`;
+                okRadio.value = 'ok';
+                // okRadio.checked = true; // Default to 'ok'
+                tdOk.appendChild(okRadio);
+                row.appendChild(tdOk);
+
+                const tdNotOk = document.createElement('td');
+                tdNotOk.setAttribute('data-label', 'Не чисто / есть вопросы');
+                const notOkRadio = document.createElement('input');
+                notOkRadio.type = 'radio';
+                notOkRadio.name = `status_${index}`;
+                notOkRadio.value = 'not_ok';
+                tdNotOk.appendChild(notOkRadio);
+                row.appendChild(tdNotOk);
+
+                const tdInput = document.createElement('td');
+                tdInput.setAttribute('data-label', 'Комментарий');
+                const inputText = document.createElement('input');
+                inputText.type = 'text';
+                inputText.name = `comments_${index}`;
+                tdInput.appendChild(inputText);
+                row.appendChild(tdInput);
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            checkListDiv.appendChild(table);  // Add the table directly to the Check_list div
+
+            // Create the "Finish" button
+            const finishButton = document.createElement('button');
+            finishButton.textContent = 'Готово';
+            finishButton.className = 'btn btn-primary';
+            finishButton.onclick = submitChecklist;
+            checkListDiv.appendChild(finishButton); // Append the button after the table
+        })
+        .catch(error => console.error('Error fetching data:', error));
+}
+
+function loadCheckListManagers() {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    fetch(`/server.php?managers=true&restaurant=${restaurant}`)
+        .then(response => response.json())
+        .then(data => {
+            const managersDiv = document.getElementById('Managers');
+            managersDiv.innerHTML = ''; // Clear existing content
+
+            // Create first select dropdown with a label
+            const label1 = document.createElement('label');
+            label1.textContent = 'Смену сдал:';
+            label1.setAttribute('for', 'managerOffSelect');
+            label1.textAlign ='center';
+            managersDiv.appendChild(label1);
+
+            const select1 = document.createElement('select');
+            select1.className = 'form-control';
+            select1.id = 'managerOffSelect'; // Assign an ID for easy access
+            select1.style.marginBottom = '10px';
+            data.forEach(manager => {
+                const option = document.createElement('option');
+                option.value = manager.id;
+                option.textContent = manager.manager; // Use 'manager' as the text
+                select1.appendChild(option);
+            });
+            managersDiv.appendChild(select1);
+
+            // Create second select dropdown with a label
+            const label2 = document.createElement('label');
+            label2.textContent = 'Смену принял:';
+            label2.setAttribute('for', 'managerOnSelect');
+            label2.textAlign ='center';
+            managersDiv.appendChild(label2);
+
+            const select2 = document.createElement('select');
+            select2.className = 'form-control';
+            select2.id = 'managerOnSelect'; // Assign an ID for easy access
+            select2.style.marginBottom = '10px';
+            data.forEach(manager => {
+                const option = document.createElement('option');
+                option.value = manager.id;
+                option.textContent = manager.manager; // Use 'manager' as the text
+                select2.appendChild(option);
+            });
+            managersDiv.appendChild(select2);
+        })
+        .catch(error => console.error('Error fetching managers:', error));
+}
+
+function loadArchive() {
+    const archiveDiv = document.getElementById('Archive');
+    archiveDiv.innerHTML = ''; // Clear existing content
+
+    const restaurant = document.getElementById('Restaurant').value; // Get selected restaurant
+
+    fetch(`/server.php?tasks_archive=true&restaurant=${encodeURIComponent(restaurant)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                archiveDiv.innerHTML = '<p>Для выбранного ресторана нет задач.</p>';
+                return;
+            }
+
+            const filterDate = document.getElementById('filterDate').value;
+            const filterType = document.getElementById('filterType').value.toLowerCase();
+            const filterQuestion = document.getElementById('filterQuestion').value.toLowerCase();
+            const filterManager = document.getElementById('filterManager').value.toLowerCase();
+
+            // Filter the data based on the input
+            const filteredData = data.filter(task => {
+                const taskDate = new Date(task.date).toISOString().split('T')[0];
+                const taskType = task.type.toLowerCase();
+                const taskQuestion = task.question.toLowerCase();
+                const taskManagerOff = task.manager_off.toLowerCase();
+                const taskManagerOn = task.manager_on.toLowerCase();
+
+                const matchesDate = filterDate ? taskDate === filterDate : true;
+                const matchesType = filterType ? taskType.includes(filterType) : true;
+                const matchesQuestion = filterQuestion ? taskQuestion.includes(filterQuestion) : true;
+                const matchesManager = filterManager ? (taskManagerOff.includes(filterManager) || taskManagerOn.includes(filterManager)) : true;
+
+                return matchesDate && matchesType && matchesQuestion && matchesManager;
+            });
+
+            // Create a table
+            const table = document.createElement('table');
+            table.id = 'ArchiveTable';
+            table.className = 'table table-striped'; // Bootstrap class for styling
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            const thDate = document.createElement('th');
+            thDate.textContent = 'Date';
+            headerRow.appendChild(thDate);
+
+            const thType = document.createElement('th');
+            thType.textContent = 'Type';
+            headerRow.appendChild(thType);
+
+            const thQuestion = document.createElement('th');
+            thQuestion.textContent = 'Question';
+            headerRow.appendChild(thQuestion);
+
+            const thComment = document.createElement('th');
+            thComment.textContent = 'Comment';
+            headerRow.appendChild(thComment);
+
+            const thManagerOff = document.createElement('th');
+            thManagerOff.textContent = 'Manager Off';
+            headerRow.appendChild(thManagerOff);
+
+            const thManagerOn = document.createElement('th');
+            thManagerOn.textContent = 'Manager On';
+            headerRow.appendChild(thManagerOn);
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            filteredData.forEach(task => {
+                const row = document.createElement('tr');
+
+                // Format the date to YYYY-MM-DD
+                const formattedDate = new Date(task.date).toISOString().split('T')[0];
+
+                const tdDate = document.createElement('td');
+                tdDate.textContent = formattedDate;
+                row.appendChild(tdDate);
+
+                const tdType = document.createElement('td');
+                tdType.textContent = task.type;
+                row.appendChild(tdType);
+
+                const tdQuestion = document.createElement('td');
+                tdQuestion.textContent = task.question;
+                row.appendChild(tdQuestion);
+
+                const tdComment = document.createElement('td');
+                tdComment.textContent = task.comment || ''; // Show comment if available
+                row.appendChild(tdComment);
+
+                const tdManagerOff = document.createElement('td');
+                tdManagerOff.textContent = task.manager_off;
+                row.appendChild(tdManagerOff);
+
+                const tdManagerOn = document.createElement('td');
+                tdManagerOn.textContent = task.manager_on;
+                row.appendChild(tdManagerOn);
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            archiveDiv.appendChild(table); // Add the table to the Archive div
+        })
+        .catch(error => console.error('Error fetching archived tasks:', error));
+}
+
+function submitChecklist() {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    // Get the selected options for manager_off and manager_on
+    const managerOffSelect = document.getElementById('managerOffSelect');
+    const managerOnSelect = document.getElementById('managerOnSelect');
+
+    const manager_off = managerOffSelect.options[managerOffSelect.selectedIndex].text; // Get the name
+    const manager_on = managerOnSelect.options[managerOnSelect.selectedIndex].text; // Get the name
+
+    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    const tableRows = document.querySelectorAll('#Check_list_questions table tbody tr');
+    const tasks = [];
+    let unanswered = false;
+
+    tableRows.forEach((row, index) => {
+        const statusElement = document.querySelector(`input[name="status_${index}"]:checked`);
+        const comment = document.querySelector(`input[name="comments_${index}"]`).value.trim();
+
+        if (statusElement) {
+            const status = statusElement.value;
+            if (status === 'not_ok' || comment !== '') {
+                const task = {
+                    restaurant: restaurant,
+                    type: row.querySelector('td:nth-child(1)').textContent,
+                    question: row.querySelector('td:nth-child(2)').textContent,
+                    manager_off: manager_off, 
+                    manager_on: manager_on, 
+                    date: today,
+                    status: 'new',
+                    comment: comment || null 
+                };
+                tasks.push(task);
+            }
+        } else {
+            row.classList.add('unanswered'); // Add red border to unanswered rows
+            unanswered = true;
+        }
+    });
+
+    if (unanswered) {
+        alert('Вы ответили не на все вопросы.');
+        return;
+    }
+
+    if (tasks.length === 0) {
+        alert('Чек лист пройден, нет новых задач.');
+        return;
+    }
+
+    // Send tasks to the server
+    fetch('/server.php?tasks=true', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(tasks)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            console.error('Error:', result.error);
+            alert('Произошла ошибка, обратитесь к администратору.');
+        } else {
+            alert(`Successfully submitted ${result.insertedRows} tasks.`);
+            document.getElementById('Check_list_questions').innerHTML = ''; 
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('There was an error submitting the tasks. Please try again.');
+    });
+}
+
+function loadTasks() {
+    const tasksDiv = document.getElementById('Tasks');
+    tasksDiv.innerHTML = ''; // Clear existing content
+
+    fetch('/server.php?tasks_new=true')
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                tasksDiv.innerHTML = '<p>No new tasks available.</p>';
+                return;
+            }
+
+            // Create a table
+            const table = document.createElement('table');
+            table.id = 'TasksTable';
+            table.className = 'table table-striped'; // Bootstrap class for styling
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            const thDate = document.createElement('th');
+            thDate.textContent = 'Date';
+            headerRow.appendChild(thDate);
+
+            const thType = document.createElement('th');
+            thType.textContent = 'Type';
+            headerRow.appendChild(thType);
+
+            const thQuestion = document.createElement('th');
+            thQuestion.textContent = 'Question';
+            headerRow.appendChild(thQuestion);
+
+            const thComment = document.createElement('th');
+            thComment.textContent = 'Comment';
+            headerRow.appendChild(thComment);
+
+            const thAction = document.createElement('th');
+            thAction.textContent = 'Action';
+            headerRow.appendChild(thAction);
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            data.forEach(task => {
+                console.log('Task ID:', task.id); // Ensure that the task ID is being retrieved
+
+                const row = document.createElement('tr');
+
+                // Format the date to YYYY-MM-DD
+                const formattedDate = new Date(task.date).toISOString().split('T')[0];
+
+                const tdDate = document.createElement('td');
+                tdDate.textContent = formattedDate;
+                row.appendChild(tdDate);
+
+                const tdType = document.createElement('td');
+                tdType.textContent = task.type;
+                row.appendChild(tdType);
+
+                const tdQuestion = document.createElement('td');
+                tdQuestion.textContent = task.question;
+                row.appendChild(tdQuestion);
+
+                const tdComment = document.createElement('td');
+                tdComment.textContent = task.comment || ''; // Show comment if available
+                row.appendChild(tdComment);
+
+                // Create the "Complete" button
+                const tdAction = document.createElement('td');
+                const completeButton = document.createElement('button');
+                completeButton.textContent = 'Готово';
+                completeButton.className = 'btn btn-success';
+                completeButton.onclick = () => completeTask(task.id, row); // Pass task ID and row to the function
+                tdAction.appendChild(completeButton);
+                row.appendChild(tdAction);
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            tasksDiv.appendChild(table); // Add the table to the Tasks div
+        })
+        .catch(error => console.error('Error fetching tasks:', error));
+}
+
+function loadManagers() {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    fetch(`/server.php?managers=true&restaurant=${encodeURIComponent(restaurant)}`)
+        .then(response => response.json())
+        .then(managers => {
+            const filterManager = document.getElementById('filterManager');
+            filterManager.innerHTML = '<option value="">Выберите менеджера</option>'; // Clear and set default option
+
+            managers.forEach(manager => {
+                const option = document.createElement('option');
+                option.value = manager.id; // Assuming 'id' is the unique identifier
+                option.textContent = manager.manager;
+                filterManager.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error fetching managers:', error));
+}
+
+function completeTask(taskId, row) {
+    fetch(`/server.php?complete_task=true&id=${taskId}`, {
+        method: 'POST',
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            console.error('Error:', result.error);
+            alert('There was an error completing the task. Please try again.');
+        } else {
+            alert('Задача успешно выполнена.');
+            row.remove(); // Remove the row from the table
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('There was an error completing the task. Please try again.');
+    });
+}
+
+function loadTypes() {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    fetch(`/server.php?types=true&restaurant=${encodeURIComponent(restaurant)}`)
+    .then(response => response.json())
+    .then(types => {
+        console.log(types); // Debugging: log the types received from the server
+        const filterType = document.getElementById('filterType');
+        filterType.innerHTML = '<option value="">Выберите тип</option>'; // Clear and set default option
+
+        types.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.textContent = type;
+            filterType.appendChild(option);
+        });
+    })
+    .catch(error => console.error('Error fetching types:', error));
+}
+
+function updateQuestions() {
+    const restaurant = document.getElementById('Restaurant').value;
+    const type = document.getElementById('filterType').value;
+
+    if (!type) {
+        document.getElementById('filterQuestion').innerHTML = '<option value="">Выберите вопрос</option>';
+        return;
+    }
+
+    fetch(`/server.php?questions=true&restaurant=${encodeURIComponent(restaurant)}/${encodeURIComponent(type)}`)
+        .then(response => response.json())
+        .then(questions => {
+            const filterQuestion = document.getElementById('filterQuestion');
+            filterQuestion.innerHTML = '<option value="">Выберите вопрос</option>'; // Clear and set default option
+
+            questions.forEach(question => {
+                const option = document.createElement('option');
+                option.value = question;
+                option.textContent = question;
+                filterQuestion.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error fetching questions:', error));
+}
+
+function loadCheckListForEditing() {
+    const editDiv = document.getElementById('Edit_check_list');
+    editDiv.innerHTML = ''; // Clear existing content
+
+    const restaurant = document.getElementById('Restaurant').value; // Get selected restaurant
+
+    // Create the "Create New Question" button
+    const createButton = document.createElement('button');
+    createButton.textContent = 'Создать новый вопрос';
+    createButton.className = 'btn btn-primary';
+    createButton.style.marginBottom = '15px';
+    createButton.onclick = createNewQuestion;
+    editDiv.appendChild(createButton);
+
+    fetch(`/server.php?questions=true&restaurant=$${encodeURIComponent(restaurant)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                editDiv.innerHTML += '<p>Нет вопросо для данного ресторана.</p>';
+                return;
+            }
+
+            // Create a table
+            const table = document.createElement('table');
+            table.id = 'EditCheckListTable';
+            table.className = 'table table-striped';
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            const thType = document.createElement('th');
+            thType.textContent = 'Type';
+            headerRow.appendChild(thType);
+
+            const thQuestion = document.createElement('th');
+            thQuestion.textContent = 'Question';
+            headerRow.appendChild(thQuestion);
+
+            const thActions = document.createElement('th');
+            thActions.textContent = 'Actions';
+            headerRow.appendChild(thActions);
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+
+                const tdType = document.createElement('td');
+                tdType.textContent = item.type;
+                row.appendChild(tdType);
+
+                const tdQuestion = document.createElement('td');
+                tdQuestion.textContent = item.question;
+                row.appendChild(tdQuestion);
+
+                // Create action buttons
+                const tdActions = document.createElement('td');
+
+                // Edit button
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Изменить';
+                editButton.className = 'btn-small btn-primary';
+                editButton.onclick = () => editQuestion(item.id, row);
+                tdActions.appendChild(editButton);
+
+                // Remove button
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Удалить';
+                removeButton.className = 'btn-small btn-danger';
+                removeButton.onclick = () => removeQuestion(item.id, row);
+                tdActions.appendChild(removeButton);
+
+                row.appendChild(tdActions);
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            editDiv.appendChild(table); // Add the table to the Edit_check_list div
+        })
+        .catch(error => console.error('Error fetching questions for editing:', error));
+}
+
+function editQuestion(questionId, row) {
+    const typeCell = row.querySelector('td:nth-child(1)');
+    const questionCell = row.querySelector('td:nth-child(2)');
+
+    const originalType = typeCell.textContent;
+    const originalQuestion = questionCell.textContent;
+
+    // Create input field for the type
+    const inputType = document.createElement('input');
+    inputType.type = 'text';
+    inputType.value = originalType;
+    inputType.className = 'form-control';
+    typeCell.innerHTML = '';
+    typeCell.appendChild(inputType);
+
+    // Create a textarea for the question to handle longer text
+    const textareaQuestion = document.createElement('textarea');
+    textareaQuestion.value = originalQuestion;
+    textareaQuestion.className = 'form-control';
+    textareaQuestion.rows = 3; // Set an appropriate number of rows, can be adjusted
+    textareaQuestion.style.width = '100%';
+    textareaQuestion.style.resize = 'vertical'; // Allow vertical resizing
+    questionCell.innerHTML = '';
+    questionCell.appendChild(textareaQuestion);
+
+    textareaQuestion.focus();
+
+    const tdActions = row.querySelector('td:nth-child(3)');
+    tdActions.innerHTML = ''; // Clear existing buttons before adding new ones
+
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Сохранить';
+    saveButton.className = 'btn-small btn-success';
+    saveButton.onclick = () => {
+        const newType = inputType.value.trim();
+        const newQuestion = textareaQuestion.value.trim();
+        
+        if (newType && newQuestion) {
+            fetch(`/server.php?update_question=true`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: questionId, type: newType, question: newQuestion })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    typeCell.textContent = newType; // Update the type cell
+                    questionCell.textContent = newQuestion; // Update the question cell
+                    resetActionButtons(tdActions, questionId, row); // Re-create the edit and remove buttons
+                } else {
+                    typeCell.textContent = originalType; // Revert to original type
+                    questionCell.textContent = originalQuestion; // Revert to original question
+                    alert('Failed to update question. Please try again.');
+                }
+            })
+            .catch(error => {
+                typeCell.textContent = originalType; // Revert to original type
+                questionCell.textContent = originalQuestion; // Revert to original question
+                console.error('Error updating question:', error);
+            });
+        } else {
+            alert('Type and Question fields cannot be empty.');
+        }
+    };
+    tdActions.appendChild(saveButton);
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Отменить';
+    cancelButton.className = 'btn-small btn-danger';
+    cancelButton.onclick = () => {
+        typeCell.textContent = originalType;
+        questionCell.textContent = originalQuestion;
+        resetActionButtons(tdActions, questionId, row);
+    };
+    tdActions.appendChild(cancelButton);
+}
+
+function createNewQuestion() {
+    const table = document.getElementById('EditCheckListTable');
+    const tbody = table.querySelector('tbody');
+
+    // Create a new row for input
+    const row = document.createElement('tr');
+
+    const tdType = document.createElement('td');
+    const inputType = document.createElement('input');
+    inputType.type = 'text';
+    inputType.placeholder = 'Укажите тип';
+    inputType.className = 'form-control';
+    tdType.appendChild(inputType);
+    row.appendChild(tdType);
+
+    const tdQuestion = document.createElement('td');
+    const inputQuestion = document.createElement('input');
+    inputQuestion.type = 'text';
+    inputQuestion.placeholder = 'Укажите вопрос';
+    inputQuestion.className = 'form-control';
+    tdQuestion.appendChild(inputQuestion);
+    row.appendChild(tdQuestion);
+
+    // Create action buttons
+    const tdActions = document.createElement('td');
+
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Сохранить';
+    saveButton.className = 'btn-small btn-success';
+    saveButton.onclick = () => saveNewQuestion(inputType.value, inputQuestion.value, row);
+    tdActions.appendChild(saveButton);
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Отменить';
+    cancelButton.className = 'btn-small btn-danger';
+    cancelButton.onclick = () => row.remove();
+    tdActions.appendChild(cancelButton);
+
+    row.appendChild(tdActions);
+    tbody.insertBefore(row, tbody.firstChild); // Insert the new row at the top
+}
+
+function saveNewQuestion(type, question, row) {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    if (type.trim() === '' || question.trim() === '') {
+        alert('Вы не указали Тип и Вопрос.');
+        return;
+    }
+
+    fetch(`/server.php?create_question=true`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ restaurant, type, question })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadCheckListForEditing(); // Reload the table after successful creation
+        } else {
+            alert('Не получилось создать новый вопрос.');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при создании вопроса:', error);
+    });
+}
+
+function resetActionButtons(tdActions, questionId, row) {
+    tdActions.innerHTML = ''; // Clear existing buttons
+
+    // Edit button
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Изменить';
+    editButton.className = 'btn-small btn-primary';
+    editButton.onclick = () => editQuestion(questionId, row);
+    tdActions.appendChild(editButton);
+
+    // Remove button
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Удалить';
+    removeButton.className = 'btn-small btn-danger';
+    removeButton.onclick = () => removeQuestion(questionId, row);
+    tdActions.appendChild(removeButton);
+}
+
+function removeQuestion(questionId, row) {
+    if (confirm('Удалить вопрос?')) {
+        fetch(`/server.php?delete_question=true`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: questionId })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                row.remove(); // Remove the row from the table
+            } else {
+                alert('Не получилось удалить вопрос.');
+            }
+        })
+        .catch(error => console.error('Ошибка при удалении вопроса:', error));
+    }
+}
+
+function editQuestionButtons(questionId, row) {
+    const tdActions = row.querySelector('td:nth-child(3)');
+
+    // Edit button
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Изменить';
+    editButton.className = 'btn-small btn-primary';
+    editButton.onclick = () => editQuestion(questionId, row);
+    tdActions.appendChild(editButton);
+
+    // Remove button
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Удалить';
+    removeButton.className = 'btn-small btn-danger';
+    removeButton.onclick = () => removeQuestion(questionId, row);
+    tdActions.appendChild(removeButton);
+}
+
+function loadManagersForEditing() {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    fetch(`/server.php?managers=true&restaurant=${encodeURIComponent(restaurant)}`)
+        .then(response => response.json())
+        .then(managers => {
+            const managersListDiv = document.getElementById('ManagersList');
+            managersListDiv.innerHTML = ''; // Clear existing content
+
+            managers.forEach(manager => {
+                const managerContainer = document.createElement('div');
+                managerContainer.className = 'manager-container';
+
+                const row = document.createElement('div');
+                row.className = 'manager-row';
+
+                const nameCell = document.createElement('div');
+                nameCell.textContent = manager.manager;
+                nameCell.className = 'manager-name';
+                nameCell.style.textAlign ='center';
+                row.appendChild(nameCell);
+
+                const actionsCell = document.createElement('div');
+                actionsCell.className = 'actions-cell';
+
+                // Edit button
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Изменить';
+                editButton.className = 'btn-small btn-primary';
+                editButton.onclick = () => editManager(manager.id, row);
+                actionsCell.appendChild(editButton);
+
+                // Remove button
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Удалить';
+                removeButton.className = 'btn-small btn-danger';
+                removeButton.onclick = () => removeManager(manager.id, row);
+                actionsCell.appendChild(removeButton);
+
+                row.appendChild(actionsCell);
+                managerContainer.appendChild(row);
+                managersListDiv.appendChild(managerContainer);
+            });
+        })
+        .catch(error => console.error('Error fetching managers:', error));
+}
+
+function editManager(managerId, row) {
+    const nameCell = row.querySelector('div:first-child');
+    const originalName = nameCell.textContent;
+
+    const inputName = document.createElement('input');
+    inputName.type = 'text';
+    inputName.value = originalName;
+    inputName.className = 'form-control';
+    nameCell.innerHTML = '';
+    nameCell.appendChild(inputName);
+
+    inputName.focus();
+
+    const actionsCell = row.querySelector('.actions-cell');
+    actionsCell.innerHTML = ''; // Clear existing buttons
+
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Сохранить';
+    saveButton.className = 'btn-small btn-success';
+    saveButton.onclick = () => {
+        const newName = inputName.value.trim();
+        
+        if (newName) {
+            fetch(`/server.php?update_managers=true`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: managerId, manager: newName })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    nameCell.textContent = newName; // Update the manager name
+                    resetActionButtonsForManagers(actionsCell, managerId, row); // Re-create the edit and remove buttons
+                } else {
+                    nameCell.textContent = originalName; // Revert to original name
+                    alert('Не получилось изменить менеджера.');
+                }
+            })
+            .catch(error => {
+                nameCell.textContent = originalName; // Revert to original name
+                console.error('Error updating manager:', error);
+            });
+        } else {
+            alert('Укажите имя менеджера.');
+        }
+    };
+    actionsCell.appendChild(saveButton);
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Отменить';
+    cancelButton.className = 'btn-small btn-danger';
+    cancelButton.onclick = () => {
+        nameCell.textContent = originalName;
+        resetActionButtonsForManagers(actionsCell, managerId, row); // Re-create the edit and remove buttons
+    };
+    actionsCell.appendChild(cancelButton);
+}
+
+function resetActionButtonsForManagers(actionsCell, managerId, row) {
+    actionsCell.innerHTML = ''; // Clear existing buttons
+
+    // Edit button
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Изменить';
+    editButton.className = 'btn-small btn-primary';
+    editButton.onclick = () => editManager(managerId, row);
+    actionsCell.appendChild(editButton);
+
+    // Remove button
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Удалить';
+    removeButton.className = 'btn-small btn-danger';
+    removeButton.onclick = () => removeManager(managerId, row);
+    actionsCell.appendChild(removeButton);
+}
+
+function removeManager(managerId, row) {
+    if (confirm('Удалить менеджера?')) {
+        fetch(`/server.php?delete_managers=true`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: managerId })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                row.remove(); // Remove the row from the UI
+            } else {
+                alert('Не получилось удалить менеджера.');
+            }
+        })
+        .catch(error => {
+            console.error('Error removing manager:', error);
+        });
+    }
+}
+
+function createNewManager() {
+    const managersListDiv = document.getElementById('ManagersList');
+
+    const row = document.createElement('div');
+    row.className = 'manager-row';
+
+    const nameCell = document.createElement('div');
+    const inputName = document.createElement('input');
+    inputName.type = 'text';
+    inputName.placeholder = 'Укажите имя менеджера';
+    inputName.className = 'form-control';
+    nameCell.appendChild(inputName);
+    row.appendChild(nameCell);
+
+    const actionsCell = document.createElement('div');
+    actionsCell.className = 'actions-cell';
+
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Сохранить';
+    saveButton.className = 'btn-small btn-success';
+    saveButton.onclick = () => {
+        const newName = inputName.value.trim();
+        const restaurant = document.getElementById('Restaurant').value;
+
+        if (newName) {
+            fetch(`/server.php?create_managers=true`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ restaurant, manager: newName })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    loadManagersForEditing(); // Reload the list after adding the manager
+                } else {
+                    alert('Не получилось создать менеджера.');
+                }
+            })
+            .catch(error => {
+                console.error('Error creating manager:', error);
+            });
+        } else {
+            alert('Укажите имя менеджера.');
+        }
+    };
+    actionsCell.appendChild(saveButton);
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Отменить';
+    cancelButton.className = 'btn-small btn-danger';
+    cancelButton.onclick = () => {
+        row.remove(); // Remove the row if canceled
+    };
+    actionsCell.appendChild(cancelButton);
+
+    row.appendChild(actionsCell);
+    managersListDiv.prepend(row); // Add the new manager row at the top
+}
+
+function loadPhotoQuestionsForEditing() {
+    const editDiv = document.getElementById('Edit_photo');
+    editDiv.innerHTML = ''; // Clear existing content
+
+    const restaurant = document.getElementById('Restaurant').value; // Get selected restaurant
+
+    // Create the "Create New Photo Question" button
+    const createButton = document.createElement('button');
+    createButton.textContent = 'Добавить задачу';
+    createButton.className = 'btn btn-primary';
+    createButton.style.marginBottom = '15px';
+    createButton.onclick = createNewPhotoQuestion;
+    editDiv.appendChild(createButton);
+
+    fetch(`/server.php?photo_question=true&restaurant=${encodeURIComponent(restaurant)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                editDiv.innerHTML += '<p>Для этого ресторана не заданы вопросы для фото отчета</p>';
+                return;
+            }
+
+            // Create a table
+            const table = document.createElement('table');
+            table.id = 'EditPhotoQuestionsTable';
+            table.className = 'table table-striped'; // Bootstrap class for styling
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            const thQuestion = document.createElement('th');
+            thQuestion.textContent = 'Question';
+            headerRow.appendChild(thQuestion);
+
+            const thActions = document.createElement('th');
+            thActions.textContent = 'Actions';
+            headerRow.appendChild(thActions);
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+
+                const tdQuestion = document.createElement('td');
+                tdQuestion.textContent = item.question;
+                row.appendChild(tdQuestion);
+
+                // Create action buttons
+                const tdActions = document.createElement('td');
+
+                // Edit button
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Изменить';
+                editButton.className = 'btn-small btn-primary';
+                editButton.onclick = () => editPhotoQuestion(item.id, row);
+                tdActions.appendChild(editButton);
+
+                // Remove button
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Удалить';
+                removeButton.className = 'btn-small btn-danger';
+                removeButton.onclick = () => removePhotoQuestion(item.id, row);
+                tdActions.appendChild(removeButton);
+
+                row.appendChild(tdActions);
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            editDiv.appendChild(table); // Add the table to the Edit_check_list div
+        })
+        .catch(error => console.error('Error fetching photo questions for editing:', error));
+}
+
+function createNewPhotoQuestion() {
+    const table = document.getElementById('EditPhotoQuestionsTable');
+    const tbody = table.querySelector('tbody');
+
+    // Create a new row for input
+    const row = document.createElement('tr');
+
+    const tdQuestion = document.createElement('td');
+    const inputQuestion = document.createElement('input');
+    inputQuestion.type = 'text';
+    inputQuestion.placeholder = 'Укажите вопрос';
+    inputQuestion.className = 'form-control';
+    tdQuestion.appendChild(inputQuestion);
+    row.appendChild(tdQuestion);
+
+    // Create action buttons
+    const tdActions = document.createElement('td');
+
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Сохранить';
+    saveButton.className = 'btn-small btn-success';
+    saveButton.style.marginRight = '5px';
+    saveButton.onclick = () => saveNewPhotoQuestion(inputQuestion.value, row);
+    tdActions.appendChild(saveButton);
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Отмена';
+    cancelButton.className = 'btn-small btn-danger';
+    cancelButton.onclick = () => row.remove();
+    tdActions.appendChild(cancelButton);
+
+    row.appendChild(tdActions);
+    tbody.insertBefore(row, tbody.firstChild); // Insert the new row at the top
+}
+
+function saveNewPhotoQuestion(question, row) {
+    const restaurant = document.getElementById('Restaurant').value;
+
+    if (question.trim() === '') {
+        alert('Вы не указали вопрос.');
+        return;
+    }
+
+    fetch(`/server.php?create_photo_question=true`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ restaurant, question })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadPhotoQuestionsForEditing(); // Reload the table after successful creation
+        } else {
+            alert('Не получилось создать новый фото вопрос.');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при создании фото вопроса:', error);
+    });
+}
+
+function editPhotoQuestion(questionId, row) {
+    const questionCell = row.querySelector('td:nth-child(1)');
+
+    const originalQuestion = questionCell.textContent;
+
+    const inputQuestion = document.createElement('textarea');
+    inputQuestion.value = originalQuestion;
+    inputQuestion.className = 'form-control';
+    questionCell.innerHTML = '';
+    questionCell.appendChild(inputQuestion);
+
+    inputQuestion.focus();
+
+    const tdActions = row.querySelector('td:nth-child(2)');
+    tdActions.innerHTML = ''; // Clear existing buttons before adding new ones
+
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Сохранить';
+    saveButton.className = 'btn-small btn-success';
+    saveButton.onclick = () => {
+        const newQuestion = inputQuestion.value.trim();
+        
+        if (newQuestion) {
+            fetch(`/server.php?update_photo_question=true`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: questionId, question: newQuestion })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    questionCell.textContent = newQuestion; // Update the question cell
+                    resetPhotoQuestionButtons(tdActions, questionId, row); // Re-create the edit and remove buttons
+                } else {
+                    questionCell.textContent = originalQuestion; // Revert to original question
+                    alert('Failed to update question. Please try again.');
+                }
+            })
+            .catch(error => {
+                questionCell.textContent = originalQuestion; // Revert to original question
+                console.error('Error updating question:', error);
+            });
+        } else {
+            alert('Question field cannot be empty.');
+        }
+    };
+    tdActions.appendChild(saveButton);
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Отменить';
+    cancelButton.className = 'btn-small btn-danger';
+    cancelButton.onclick = () => {
+        questionCell.textContent = originalQuestion;
+        resetPhotoQuestionButtons(tdActions, questionId, row);
+    };
+    tdActions.appendChild(cancelButton);
+}
+
+
+function ScrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+
+function resetPhotoQuestionButtons(tdActions, questionId, row) {
+    tdActions.innerHTML = ''; // Clear existing buttons
+
+    // Edit button
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Изменить';
+    editButton.className = 'btn-small btn-primary';
+    editButton.style.marginRight = '5px';
+    editButton.onclick = () => editPhotoQuestion(questionId, row);
+    tdActions.appendChild(editButton);
+
+    // Remove button
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Удалить';
+    removeButton.className = 'btn-small btn-danger';
+    removeButton.onclick = () => removePhotoQuestion(questionId, row);
+    tdActions.appendChild(removeButton);
+}
+
+function removePhotoQuestion(questionId, row) {
+    if (confirm('Удалить фото вопрос?')) {
+        fetch(`/server.php?delete_photo_question=true`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: questionId })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                row.remove(); // Remove the row from the table
+            } else {
+                alert('Не получилось удалить фото вопрос.');
+            }
+        })
+        .catch(error => console.error('Ошибка при удалении фото вопроса:', error));
+    }
+}
+</script>
+
+<body>
+    <div id="loginContainer" class="login-container">
+        <div id="loginPanel" class="panel panel-primary center-block text-center" style="max-width:400px;">
+            <div class="panel-body">
+              <div style="width: 100%; padding: 10px; background-color: #337ab7; margin-bottom: 10px; color: white; border: none; border-radius: 4px;">Каста - чек-лист смены</div>
+              <input type="text" id="usernameInput" placeholder="Введите имя пользователя" style="margin-bottom: 10px; width: 100%; padding: 10px;"/>
+              <input type="password" id="passwordInput" placeholder="Введите пароль" style="margin-bottom: 10px; width: 100%; padding: 10px;"/>
+              <button onclick="login()" style="width: 100%; padding: 10px; background-color: #5CB85C; color: white; border: none; border-radius: 4px; cursor: pointer;">Войти</button>
+              <p id="loginMessage"></p>
+            </div>
+        </div>
+      </div>
+
+    <div class="content" style="display: none;">
+    <div class="center-block" id="mainContent" style="width: 95%;">
+        <div class="text-center" >
+            <p id="greeting" class="greeting">Чек-лист</p>
+        </div>
+        <div id="login">
+            Тут небольшая инструкция как работать
+        </div>
+        <div class="icon-buttons">
+            <div class="input-group" style="width: 80%; margin: auto; margin-top: 4px;">
+                <span class="input-group-addon">Ресторан</span>
+                <select id="Restaurant" class="form-control" onchange="loadTypes();loadManagers()">
+                    <option value="Каста">Каста</option>
+                    <option value="Тоскана">Тоскана</option>
+                    <option value="Наполи">Наполи</option>
+                    <option value="Мафия">Мафия</option>
+                    <option value="Джорджия">Джорджия</option>
+                </select>
+            </div>
+            <button id="scrollToTopBtn" onclick="ScrollToTop();" class="scrollToTopBtn">
+                <img src="images/arrow_up.png">
+            </button>
+        
+            <br>
+            <button onclick="showElements('Check_list', 'Tasks', 'Archive_data', 'Edit_check_list','Edit_managers','Edit_photo','login')" class="icon-button">
+                <img src="images/shift.png">
+            </button>
+            <button onclick="showElements('Tasks', 'Check_list', 'Archive_data', 'Edit_check_list','Edit_managers','Edit_photo','login')" class="icon-button">
+                <img src="images/task.png">
+            </button>
+            <button onclick="showElements('Archive_data', 'Check_list', 'Tasks', 'Edit_check_list','Edit_managers','Edit_photo','login'); loadTypes(); loadManagers()" class="icon-button">
+                <img src="images/archive.png">
+            </button>
+            <button onclick="showElements('Edit_check_list', 'Check_list', 'Tasks', 'Archive_data','Edit_managers','Edit_photo','login');" class="icon-button" id="Edit_check_list_btn">
+                <img src="images/edit.png">
+            </button>
+            <button onclick="showElements('Edit_managers', 'Check_list', 'Tasks', 'Archive_data','Edit_check_list','Edit_photo','login');" class="icon-button" id="Edit_managers_btn">
+                <img src="images/manager.png">
+            </button>
+            <button onclick="showElements('Edit_photo','Edit_managers', 'Check_list', 'Tasks', 'Archive_data','Edit_check_list','login');" class="icon-button" id="Edit_photo_btn">
+                <img src="images/photo.png">
+            </button>
+        </div>
+        <br>
+
+        <div class="center-block">
+            <div id="Check_list" style="display: none;">
+                <div id="Managers" style="display: block;">
+                </div>
+                <p style="margin: 4px;"></p>
+                <div id="Check_list_questions" style="display: block;">
+                </div>
+            </div>
+            <div id="Tasks" style="display: none;">
+            </div>
+            <div id="Archive_data" style="display: none;">
+                <div class="filter-container">
+                    <div class="filter-item">
+                        <label for="filterDate">Дата:</label>
+                        <input type="date" id="filterDate" class="form-control">
+                    </div>
+            
+                    <div class="filter-item">
+                        <label for="filterType">Тип:</label>
+                        <select id="filterType" class="form-control" onchange="updateQuestions()">
+                            <option value="">Выберите тип</option>
+                            <!-- Options will be dynamically loaded -->
+                        </select>
+                    </div>
+            
+                    <div class="filter-item">
+                        <label for="filterQuestion">Вопрос:</label>
+                        <select id="filterQuestion" class="form-control">
+                            <option value="">Выберите вопрос</option>
+                            <!-- Options will be dynamically loaded -->
+                        </select>
+                    </div>
+            
+                    <div class="filter-item">
+                        <label for="filterManager">Менеджер:</label>
+                        <select id="filterManager" class="form-control">
+                            <option value="">Выберите менеджера</option>
+                            <!-- Options will be dynamically loaded -->
+                        </select>
+                    </div>
+            
+                    <div class="filter-item">
+                        <button onclick="applyFilters()" class="btn btn-primary">Фильтровать</button>
+                    </div>
+                </div>
+            <div id="Archive">
+            </div>
+            </div>
+            <div id="Edit_check_list" style="display: none;">
+            </div>
+            <div id="Edit_managers" style="display: none;">
+                <button class="btn btn-primary" onclick="createNewManager()">Добавить нового менеджера</button>
+                <p style="margin: 10px;"></p>
+                <div id="ManagersList"></div>
+            </div>
+            <div id="Edit_photo" style="display: none;"> 
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+</html>
